@@ -1,9 +1,10 @@
 import { useMutation } from "@apollo/client";
-import { LOGIN } from "./querys";
+import { LOGIN } from "../lib/querys";
 import { jwtDecode } from "jwt-decode";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useEffect } from "react";
+import { Button, Text, View } from "react-native";
 
 export default function Login() {
 	const [login, { loading, error }] = useMutation(LOGIN, {
@@ -18,20 +19,28 @@ export default function Login() {
 		},
 	});
 
-	loading && <div>Loading...</div>;
-
 	useEffect(() => {
 		login({ variables: { email: "juan.estol@petromark.com.ar", password: "123456" } });
 	}, []);
 
 	return (
 		<>
-			{loading && <div>Loading...</div>}
-			{error && <div>Error...</div>}
-			{!loading && !error && <div>Logueado</div>}
-			<button disabled={loading || !!error} onClick={() => router.replace("/home")}>
-				Ir home
-			</button>
+			{loading && (
+				<View>
+					<Text>Loading...</Text>
+				</View>
+			)}
+			{error && (
+				<View>
+					<Text>Error...</Text>
+				</View>
+			)}
+			{!loading && !error && (
+				<View>
+					<Text>Logueado</Text>
+				</View>
+			)}
+			<Button title="Ir home" disabled={loading || !!error} onPress={() => router.replace("/home")}></Button>
 		</>
 	);
 }

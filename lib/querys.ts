@@ -186,7 +186,7 @@ export const GET_PIPING_RECORDS = gql`
 	}
 `;
 
-export const CREATE_EXTERAL_PAPING_RECORD = gql`
+export const CREATE_EXTERAL_PIPING_RECORD = gql`
 	mutation ($record: InputCreateExternalPipingRecord) {
 		createExternalPipingRecord(record: $record) {
 			id

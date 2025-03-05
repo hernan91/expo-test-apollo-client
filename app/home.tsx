@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@apollo/client";
-import { CREATE_EXTERAL_PAPING_RECORD, GET_PIPING_RECORDS, GET_TASKSLIST } from "./querys";
+import { CREATE_EXTERAL_PIPING_RECORD, GET_PIPING_RECORDS, GET_TASKSLIST } from "../lib/querys";
 import { useEffect } from "react";
-import { ScrollView } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 
 export default function () {
 	const {
@@ -26,9 +26,10 @@ export default function () {
 				},
 			],
 		},
+		skip: false,
 	});
 
-	const [createExternalPipingRecord, responseCreateRecord] = useMutation(CREATE_EXTERAL_PAPING_RECORD, {
+	const [createExternalPipingRecord, responseCreateRecord] = useMutation(CREATE_EXTERAL_PIPING_RECORD, {
 		onCompleted: async () => {
 			console.log({ responseCreateRecord });
 		},
@@ -72,25 +73,52 @@ export default function () {
 
 	const logCreateRecords = () => {
 		if (loading) {
-			return <div>Cargando records...</div>;
+			return (
+				<View>
+					<Text>Cargando records...</Text>
+				</View>
+			);
 		}
 		if (error) {
-			return <div>Error en la obtencion de records...</div>;
+			return (
+				<View>
+					<Text>Error en la obtencion de records...</Text>
+				</View>
+			);
 		}
 		if (pipingData) {
-			return <div>Se obtuvieron los records</div>;
+			return (
+				<View>
+					<Text>Se obtuvieron los records</Text>
+				</View>
+			);
 		}
 	};
 
 	const logInsertRecord = () => {
 		if (responseCreateRecord.loading) {
-			return <div>Creando record...</div>;
+			return (
+				<View>
+					<Text>Creando record...</Text>
+				</View>
+			);
 		}
 		if (responseCreateRecord.error) {
-			return <div>Error creando record: {responseCreateRecord.error.message}</div>;
+			return (
+				<View>
+					<Text>Error creando record: {responseCreateRecord.error.message}</Text>
+				</View>
+			);
+		}
+		{
+			JSON.stringify(pipingData, null, 2);
 		}
 
-		return <div>Record creado</div>;
+		return (
+			<View>
+				<Text>Record creado</Text>
+			</View>
+		);
 	};
 
 	return (

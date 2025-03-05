@@ -32,7 +32,7 @@ class OfflineLink extends ApolloLink {
 	operations: { operation: Operation; forward: any }[]; // CREAR EL TIPO
 	isOnline: boolean;
 	constructor() {
-		console.log("OfflineLink constructor");
+		console.warn("OfflineLink constructor");
 		super();
 
 		this.operations = [];
@@ -42,8 +42,8 @@ class OfflineLink extends ApolloLink {
 		this.loadOperations();
 
 		// En caso que la app se quede sin internet, se guarda la operacion en la cola
-		NetInfo.addEventListener((state) => {
-			console.log("NetInfo state", state);
+		/* NetInfo.addEventListener((state) => {
+			console.warn("NetInfo state", state);
 			const wasOffline = !this.isOnline;
 			this.isOnline = !!state.isConnected;
 
@@ -51,14 +51,14 @@ class OfflineLink extends ApolloLink {
 			if (wasOffline && this.isOnline) {
 				this.processQueue();
 			}
-		});
+		}); */
 	}
 
 	/**
 	 * uso: si la app se cerro y se borro la cache, se recargan las operaciones pendientes en OfflineLink
 	 */
 	async loadOperations() {
-		console.log("Loading offline operations");
+		console.warn("Loading offline operations");
 		try {
 			const saved = await AsyncStorage.getItem("apollo-offline-operations");
 			if (saved) this.operations = JSON.parse(saved);
@@ -68,7 +68,7 @@ class OfflineLink extends ApolloLink {
 	}
 
 	async saveOperations() {
-		console.log("Saving offline operations");
+		console.warn("Saving offline operations");
 		try {
 			await AsyncStorage.setItem("apollo-offline-operations", JSON.stringify(this.operations));
 		} catch (e) {
@@ -77,7 +77,7 @@ class OfflineLink extends ApolloLink {
 	}
 
 	processQueue() {
-		console.log("Processing offline queue");
+		console.warn("Processing offline queue");
 		// Process pending operations
 		const pending = [...this.operations];
 		this.operations = [];
@@ -90,7 +90,7 @@ class OfflineLink extends ApolloLink {
 
 	//override del metodo request de ApolloLink, siempre devuelve un Observable
 	request(operation: Operation, forward: any) {
-		console.log("OfflineLink request", operation.operationName);
+		console.warn("OfflineLink request", operation.operationName);
 		//se fija si hay internet
 		if (this.isOnline) {
 			//si hay internet pasa a HttpLink
@@ -125,10 +125,10 @@ class OfflineLink extends ApolloLink {
 
 // Function to persist cache
 const persistCache = async () => {
-	console.log("Persisting Apollo cache");
+	console.warn("Persisting Apollo cache");
 	try {
 		await AsyncStorage.setItem("apollo-cache", JSON.stringify(cache.extract()));
-		console.log("Apollo cache persisted");
+		console.warn("Apollo cache persisted");
 	} catch (e) {
 		console.error("Error persisting Apollo cache", e);
 	}
@@ -152,9 +152,9 @@ export const initApolloClient = async () => {
 			onError(({ graphQLErrors, networkError }) => {
 				// Handle errors
 				if (graphQLErrors) {
-					graphQLErrors.forEach(({ message, locations, path }) => console.log(`[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`));
+					graphQLErrors.forEach(({ message, locations, path }) => console.warn(`[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`));
 				}
-				if (networkError) console.log(`[Network error]: ${networkError}`);
+				if (networkError) console.warn(`[Network error]: ${networkError}`);
 			}),
 			new OfflineLink(),
 			/**
@@ -182,7 +182,7 @@ export const initApolloClient = async () => {
 	// Set up AppState listener to persist on background/inactive
 	//De la forma en que esta hecho esto es que la app pasa a segundo plano se guardan los datos en cache, eso es mejorable con la libreria que hace que la cache sea persistente aumaticamente,  ver archivo "persistenciaCache"
 	AppState.addEventListener("change", (nextAppState) => {
-		console.log("AppState change", nextAppState);
+		console.warn("AppState change", nextAppState);
 		if (nextAppState === "background" || nextAppState === "inactive") {
 			persistCache();
 		}
@@ -190,7 +190,7 @@ export const initApolloClient = async () => {
 
 	// Also persist periodically while app is running
 	setInterval(persistCache, 60000); // Every minute
-	console.log("main");
+	console.warn("main");
 	loadDevMessages();
 	loadErrorMessages();
 	return client;
