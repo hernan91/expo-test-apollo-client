@@ -181,5 +181,7 @@ const exampleRecord = {
 
 /* 
 	te quedaste ya haciendo debugging de funcionamiento en web, ya inserta bien los records, 
-	pero ahora estas viendo como se comporta offline y volviendo a estar en linea 
+	pero ahora estas viendo como se comporta offline y volviendo a estar en linea.
+	Como que la variable operations no se muestra, que pasa si la metes en un useEffect y console?
+	Pero las ops se estan almacenando, en "Application->LocalStorage" aparecen
 */
