@@ -20,7 +20,7 @@ import * as Network from "expo-network";
 const cache = new InMemoryCache();
 
 const httpLink = createHttpLink({
-  uri: "http://192.168.2.128:4000",
+  uri: "http://192.168.2.105:4000",
 });
 
 const authLink = setContext(async (_, { headers }) => {
@@ -59,7 +59,8 @@ export class OfflineLink extends ApolloLink {
       this.isOnline = !!state.isConnected;
 
       // Si pasamos de un estado offline a online, se procesan las operaciones pendientes
-      if (wasOffline && this.isOnline) {
+      //if (wasOffline && this.isOnline) {
+      if (this.isOnline && this.operations.length > 0) {
         this.processQueue();
       }
     });

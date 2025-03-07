@@ -5,6 +5,7 @@ import { ApolloProvider } from "@apollo/client";
 import { Stack } from "expo-router";
 
 import { useEffect, useState } from "react";
+import { Text } from "react-native";
 
 export default function RootLayout() {
   const [client, setClient] = useState<any>(null);
@@ -21,8 +22,11 @@ export default function RootLayout() {
 
   return (
     <>
-      {JSON.stringify(offlineLink.operations.map((op) => op.operation.operationName))}
-      <QueueVisualization queue={offlineLink.operations.map((op) => op.operation.operationName)} />
+      <QueueVisualization
+        queue={offlineLink.operations.map((op, i) =>
+          op.operation.variables.record.id.toString().slice(-6)
+        )}
+      />
       {client && (
         <ApolloProvider client={client}>
           <Stack>

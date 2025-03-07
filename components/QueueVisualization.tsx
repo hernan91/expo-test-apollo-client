@@ -11,12 +11,7 @@ const QueueVisualization = ({ queue = [] }: { queue: string[] }) => {
           <Text style={styles.emptyText}>Cola vacía</Text>
         ) : (
           <>
-            <View style={styles.labelsContainer}>
-              <Text style={styles.label}>Frente</Text>
-              <Text style={styles.label}>Final</Text>
-            </View>
-
-            <ScrollView>
+            <View style={{ flexDirection: "row", gap: "1rem" }}>
               {queue.map((item, index) => (
                 <View
                   key={index}
@@ -33,11 +28,11 @@ const QueueVisualization = ({ queue = [] }: { queue: string[] }) => {
                   <Text style={styles.indexText}>#{index}</Text>
                 </View>
               ))}
-            </ScrollView>
+            </View>
 
             <View style={styles.operationsContainer}>
-              <Text style={styles.operationText}>← Desencolado</Text>
-              <Text style={styles.operationText}>Encolado →</Text>
+              <Text style={styles.operationText}>← Primera</Text>
+              <Text style={styles.operationText}>Ultima →</Text>
             </View>
           </>
         )}
@@ -57,6 +52,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 16,
+    flexWrap: "nowrap",
   },
   queueContainer: {
     width: "100%",
@@ -80,12 +76,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   itemContainer: {
+    flex: 1,
     padding: 12,
     borderRadius: 6,
     marginVertical: 4,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    backgroundColor: "red",
   },
   frontItem: {
     backgroundColor: "#bbf7d0", // light green
