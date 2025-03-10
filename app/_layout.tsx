@@ -1,13 +1,15 @@
 import { offlineLink } from "@/components/OfflineLink";
 import QueueVisualization from "@/components/QueueVisualization";
 import { initApolloClient } from "@/lib/client";
+import { useOfflineLinkStore } from "@/store/useOfflineLinkStore";
 import { ApolloProvider } from "@apollo/client";
 import { Stack } from "expo-router";
-
 import { useEffect, useState } from "react";
-import { Text } from "react-native";
+import { Button } from "react-native";
 
 export default function RootLayout() {
+  const offlineLink = useOfflineLinkStore((state) => state.offlineLink);
+  const toggleOnline = useOfflineLinkStore((state) => state.toggleOnline);
   const [client, setClient] = useState<any>(null);
 
   useEffect(() => {
@@ -20,13 +22,19 @@ export default function RootLayout() {
     func();
   }, []);
 
+  const handleOnlineChange = () => {
+    console.log("handleOnlineChange");
+    toggleOnline();
+  };
+
   return (
     <>
-      <QueueVisualization
-        queue={offlineLink.operations.map((op, i) =>
-          op.operation.variables.record.id.toString().slice(-6)
-        )}
+      <Button
+        title={offlineLink.isOnline ? "set offline" : "set online"}
+        onPress={handleOnlineChange}
       />
+      <QueueVisualization />
+
       {client && (
         <ApolloProvider client={client}>
           <Stack>

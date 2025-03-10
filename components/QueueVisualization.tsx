@@ -1,33 +1,49 @@
-import React from "react";
+import { useOfflineLinkStore } from "@/store/useOfflineLinkStore";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 
-const QueueVisualization = ({ queue = [] }: { queue: string[] }) => {
+const QueueVisualization = () => {
+  const operationsQueue: any[] = useOfflineLinkStore((state) => state.offlineLink.operations);
+  const op = operationsQueue.map((item, i) =>
+    item.operation.variables.record.id.toString().slice(-6)
+  );
+
+  /*   useEffect(() => {
+    const func = async () => {
+      const item = await AsyncStorage.getItem("apollo-offline-operations");
+      console.log("item", JSON.parse(item || ""));
+    };
+    func();
+  }, [AsyncStorage.getItem("apollo-offline-operations")]); */
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Cola (Queue)</Text>
 
       <View style={styles.queueContainer}>
-        {queue.length === 0 ? (
+        {op.length === 0 ? (
           <Text style={styles.emptyText}>Cola vacía</Text>
         ) : (
           <>
             <View style={{ flexDirection: "row", gap: "1rem" }}>
-              {queue.map((item, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.itemContainer,
-                    index === 0
-                      ? styles.frontItem
-                      : index === queue.length - 1
-                      ? styles.backItem
-                      : styles.middleItem,
-                  ]}
-                >
-                  <Text style={styles.itemText}>{JSON.stringify(item)}</Text>
-                  <Text style={styles.indexText}>#{index}</Text>
-                </View>
-              ))}
+              {op.length &&
+                op.map((item, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.itemContainer,
+                      index === 0
+                        ? styles.frontItem
+                        : index === operationsQueue.length - 1
+                        ? styles.backItem
+                        : styles.middleItem,
+                    ]}
+                  >
+                    <Text style={styles.itemText}>{JSON.stringify(item)}</Text>
+                    <Text style={styles.indexText}>#{index}</Text>
+                  </View>
+                ))}
             </View>
 
             <View style={styles.operationsContainer}>
@@ -38,7 +54,7 @@ const QueueVisualization = ({ queue = [] }: { queue: string[] }) => {
         )}
       </View>
 
-      <Text style={styles.countText}>Elementos: {queue.length}</Text>
+      <Text style={styles.countText}>Elementos: {operationsQueue.length}</Text>
     </View>
   );
 };

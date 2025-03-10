@@ -53,7 +53,7 @@ export class OfflineLink extends ApolloLink {
     this.loadOperations();
 
     // En caso que la app se quede sin internet, se guarda la operacion en la cola
-    Network.addNetworkStateListener((state) => {
+    /* Network.addNetworkStateListener((state) => {
       console.warn("NetInfo state", state);
       const wasOffline = !this.isOnline;
       this.isOnline = !!state.isConnected;
@@ -63,7 +63,7 @@ export class OfflineLink extends ApolloLink {
       if (this.isOnline && this.operations.length > 0) {
         this.processQueue();
       }
-    });
+    }); */
   }
 
   /**
@@ -98,6 +98,16 @@ export class OfflineLink extends ApolloLink {
     pending.forEach((operation) => {
       operation.forward(operation.operation);
     });
+  }
+
+  toggleOnline() {
+    console.log("toggleOnline");
+    this.isOnline = !this.isOnline;
+    if (this.isOnline) this.processQueue();
+  }
+
+  setOperations(operations: any[]) {
+    this.operations = operations;
   }
 
   //override del metodo request de ApolloLink, siempre devuelve un Observable
