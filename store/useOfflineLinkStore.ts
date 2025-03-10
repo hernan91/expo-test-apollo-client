@@ -4,6 +4,7 @@ import { create } from "zustand";
 type StoreOperations = {
   offlineLink: OfflineLink;
   toggleOnline: () => void;
+  getOperations: () => any;
   //updateOperations: () => void;
 };
 
@@ -14,6 +15,9 @@ export const useOfflineLinkStore = create<StoreOperations>((set, get) => ({
     offlineLink.toggleOnline();
     // Forzar actualización del estado
     set({ ...offlineLink } as OfflineLink);
-    console.log({ isOn: offlineLink.isOnline });
+  },
+  getOperations: () => {
+    const { offlineLink } = get();
+    return offlineLink.operations;
   },
 }));

@@ -9,6 +9,7 @@ import { Button } from "react-native";
 
 export default function RootLayout() {
   const offlineLink = useOfflineLinkStore((state) => state.offlineLink);
+  const isOnline = useOfflineLinkStore((state) => state.offlineLink.isOnline);
   const toggleOnline = useOfflineLinkStore((state) => state.toggleOnline);
   const [client, setClient] = useState<any>(null);
 
@@ -29,10 +30,7 @@ export default function RootLayout() {
 
   return (
     <>
-      <Button
-        title={offlineLink.isOnline ? "set offline" : "set online"}
-        onPress={handleOnlineChange}
-      />
+      <Button title={isOnline ? "set offline" : "set online"} onPress={handleOnlineChange} />
       <QueueVisualization />
 
       {client && (

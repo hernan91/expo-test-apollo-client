@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 
 const QueueVisualization = () => {
-  const operationsQueue: any[] = useOfflineLinkStore((state) => state.offlineLink.operations);
+  const operationsQueue: any[] = useOfflineLinkStore((state) => state.getOperations());
   const op = operationsQueue.map((item, i) =>
     item.operation.variables.record.id.toString().slice(-6)
   );
@@ -35,7 +35,7 @@ const QueueVisualization = () => {
                       styles.itemContainer,
                       index === 0
                         ? styles.frontItem
-                        : index === operationsQueue.length - 1
+                        : index === op.length - 1
                         ? styles.backItem
                         : styles.middleItem,
                     ]}
