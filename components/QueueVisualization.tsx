@@ -1,13 +1,13 @@
-import { useOfflineLinkStore } from "@/store/useOfflineLinkStore";
+import { OfflineLink, QueueState } from "@/lib/client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, Button } from "react-native";
 
-const QueueVisualization = () => {
-  const operationsQueue: any[] = useOfflineLinkStore((state) => state.getOperations());
-  const op = operationsQueue.map((item, i) =>
+const QueueVisualization = ({ offlineLink }: { offlineLink: OfflineLink }) => {
+  //const operationsQueue: any[] = useOfflineLinkStore((state) => state.getOperations());
+  /* const op = operationsQueue.map((item, i) =>
     item.operation.variables.record.id.toString().slice(-6)
-  );
+  ); */
 
   /*   useEffect(() => {
     const func = async () => {
@@ -17,44 +17,31 @@ const QueueVisualization = () => {
     func();
   }, [AsyncStorage.getItem("apollo-offline-operations")]); */
 
+  const [queue, setQueue] = useState<QueueState>({ operations: [], length: 0, isOnline: false });
+
+  const handleUpdateSignal = (queueState: QueueState) => {
+    setQueue(queueState);
+    console.log("update Signal", { isOnline: queueState.isOnline });
+  };
+
+  useEffect(() => {
+    if (offlineLink) {
+      const observer = offlineLink.suscribe(handleUpdateSignal);
+      return offlineLink.unsuscribe(observer);
+    }
+  }, [offlineLink]);
+
+  const handleOnlineChange = () => {
+    offlineLink.toggleOnline();
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Cola (Queue)</Text>
+      <Text style={{ backgroundColor: queue.isOnline ? "green" : "red", ...styles.netState }}>
+        {queue.isOnline ? "Online" : "Offline"}
+      </Text>
 
-      <View style={styles.queueContainer}>
-        {op.length === 0 ? (
-          <Text style={styles.emptyText}>Cola vacía</Text>
-        ) : (
-          <>
-            <View style={{ flexDirection: "row", gap: "1rem" }}>
-              {op.length &&
-                op.map((item, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.itemContainer,
-                      index === 0
-                        ? styles.frontItem
-                        : index === op.length - 1
-                        ? styles.backItem
-                        : styles.middleItem,
-                    ]}
-                  >
-                    <Text style={styles.itemText}>{JSON.stringify(item)}</Text>
-                    <Text style={styles.indexText}>#{index}</Text>
-                  </View>
-                ))}
-            </View>
-
-            <View style={styles.operationsContainer}>
-              <Text style={styles.operationText}>← Primera</Text>
-              <Text style={styles.operationText}>Ultima →</Text>
-            </View>
-          </>
-        )}
-      </View>
-
-      <Text style={styles.countText}>Elementos: {operationsQueue.length}</Text>
+      <Text>{queue.length === 0 ? "Sync" : `Pend(${queue.length})`}</Text>
     </View>
   );
 };
@@ -64,72 +51,12 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: "center",
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 16,
-    flexWrap: "nowrap",
-  },
-  queueContainer: {
+  netState: {
     width: "100%",
-    borderWidth: 2,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    padding: 16,
-    backgroundColor: "#f9fafb",
-  },
-  emptyText: {
+    padding: 5,
+    marginBottom: 10,
     textAlign: "center",
-    color: "#6b7280",
-    padding: 16,
-  },
-  labelsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  label: {
-    fontWeight: "600",
-  },
-  itemContainer: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 6,
-    marginVertical: 4,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "red",
-  },
-  frontItem: {
-    backgroundColor: "#bbf7d0", // light green
-  },
-  backItem: {
-    backgroundColor: "#bfdbfe", // light blue
-  },
-  middleItem: {
-    backgroundColor: "#e5e7eb", // light gray
-  },
-  itemText: {
-    fontFamily: "monospace",
-  },
-  indexText: {
-    fontSize: 12,
-    color: "#6b7280",
-  },
-  operationsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 16,
-  },
-  operationText: {
-    fontSize: 12,
-    color: "#6b7280",
-  },
-  countText: {
-    marginTop: 16,
-    fontSize: 14,
-    color: "#4b5563",
+    color: "white",
   },
 });
 

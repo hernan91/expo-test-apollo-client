@@ -1,17 +1,13 @@
-import { offlineLink } from "@/components/OfflineLink";
 import QueueVisualization from "@/components/QueueVisualization";
-import { initApolloClient } from "@/lib/client";
-import { useOfflineLinkStore } from "@/store/useOfflineLinkStore";
+import { initApolloClient, OfflineLink } from "@/lib/client";
 import { ApolloProvider } from "@apollo/client";
 import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { Button } from "react-native";
 
 export default function RootLayout() {
-  const offlineLink = useOfflineLinkStore((state) => state.offlineLink);
-  const isOnline = useOfflineLinkStore((state) => state.offlineLink.isOnline);
-  const toggleOnline = useOfflineLinkStore((state) => state.toggleOnline);
   const [client, setClient] = useState<any>(null);
+  const offlineLink = new OfflineLink();
 
   useEffect(() => {
     const func = async () => {
@@ -23,16 +19,9 @@ export default function RootLayout() {
     func();
   }, []);
 
-  const handleOnlineChange = () => {
-    console.log("handleOnlineChange");
-    toggleOnline();
-  };
-
   return (
     <>
-      <Button title={isOnline ? "set offline" : "set online"} onPress={handleOnlineChange} />
-      <QueueVisualization />
-
+      <QueueVisualization offlineLink={offlineLink} />
       {client && (
         <ApolloProvider client={client}>
           <Stack>
@@ -43,3 +32,8 @@ export default function RootLayout() {
     </>
   );
 }
+
+/* 
+	Se gestionan estados offline y online para hacer pruebas desde el navegador, 
+	evitando movil que no tiene debugging
+*/

@@ -112,6 +112,7 @@ export default function () {
       // Update function: cómo actualizar el caché
       update: (cache, { data }) => {
         // Leer los datos actuales
+        console.log({ data });
         const existingRecords: any = cache.readQuery({
           query: GET_PIPING_RECORDS,
         });
@@ -138,16 +139,19 @@ export default function () {
 
   return (
     <ScrollView>
-      <Text>{JSON.stringify(networkState, null, 2)}</Text>
+      {/*  <Text>{JSON.stringify(networkState, null, 2)}</Text> */}
+
+      {pipingData.findExternalPipingRecords.records &&
+        pipingData.findExternalPipingRecords.records.map((r) => <Text key={r.id}>{r.id}</Text>)}
+      <Button title="Crear record" onPress={handleCreateRecord}></Button>
+      <Text>{logCreateRecords()}</Text>
+      <Text>{logInsertRecord()}</Text>
       <TextInput
         multiline={true}
         value={mutationText}
         style={{ backgroundColor: "grey", color: "white", width: 442, height: 442 }}
         onChange={(elem) => setMutationText(elem.nativeEvent.text)}
       ></TextInput>
-      <Button title="Crear record" onPress={handleCreateRecord}></Button>
-      <Text>{logCreateRecords()}</Text>
-      <Text>{logInsertRecord()}</Text>
     </ScrollView>
   );
 }
