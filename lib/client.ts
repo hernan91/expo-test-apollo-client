@@ -7,17 +7,31 @@ import {
   Observable,
   createHttpLink,
   Operation,
+  gql,
 } from "@apollo/client";
 import { RetryLink } from "@apollo/client/link/retry";
 import { onError } from "@apollo/client/link/error";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo, { useNetInfo } from "@react-native-community/netinfo";
 import { AppState } from "react-native";
 import { setContext } from "@apollo/client/link/context";
 import { loadErrorMessages, loadDevMessages } from "@apollo/client/dev";
 import * as Network from "expo-network";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AsyncStorageWrapper, persistCache } from "apollo3-cache-persist";
+import { CachePersistor } from "apollo3-cache-persist";
 
-const cache = new InMemoryCache();
+const dataCache = new InMemoryCache();
+const operationsCache = new InMemoryCache();
+const apolloCachePersistor = new CachePersistor({
+  cache: dataCache,
+  storage: new AsyncStorageWrapper(AsyncStorage),
+  key: "apollo-data-cache",
+});
+const apolloOfflineOperationsPersistor = new CachePersistor({
+  cache: operationsCache,
+  storage: new AsyncStorageWrapper(AsyncStorage),
+  key: "apollo-offline-operations",
+});
 
 const httpLink = createHttpLink({
   uri: "http://192.168.2.105:4000",
@@ -57,6 +71,8 @@ export class OfflineLink extends ApolloLink {
     this.operations = [];
     Network.getNetworkStateAsync().then((state) => {
       this.isOnline = !!state.isConnected;
+      this.processQueue();
+
       /* if (this.isOnline && this.operations.length > 0) {
         console.log("procesa la cola de netinfo");
         this.processQueue();
@@ -68,7 +84,7 @@ export class OfflineLink extends ApolloLink {
     this.observers = new Set();
 
     // en cada inicio de app se cargan las operaciones que hayan quedado pendientes en storage
-    this.loadOperations();
+    this.restoreOperations();
 
     // En caso que la app se quede sin internet, se guarda la operacion en la cola
     Network.addNetworkStateListener((state) => {
@@ -105,24 +121,30 @@ export class OfflineLink extends ApolloLink {
   /**
    * uso: si la app se cerro y se borro la cache, se recargan las operaciones pendientes en OfflineLink
    */
-  async loadOperations() {
+  async restoreOperations() {
     console.warn("Loading offline operations");
-    try {
-      const saved = await AsyncStorage.getItem("apollo-offline-operations");
-      if (saved) this.operations = JSON.parse(saved);
-    } catch (e) {
-      console.error("Error loading offline operations", e);
-    }
+    await apolloOfflineOperationsPersistor.restore();
+    this.operations =
+      operationsCache.readQuery({
+        query: gql`
+          query GetOps {
+            operations
+          }
+        `,
+      })?.operations || [];
   }
 
-  async saveOperations() {
+  async persistOperations() {
     console.warn("Saving offline operations");
-    try {
-      await AsyncStorage.setItem("apollo-offline-operations", JSON.stringify(this.operations));
-      this.notifyObservers();
-    } catch (e) {
-      console.error("Error saving offline operations", e);
-    }
+    operationsCache.writeQuery({
+      query: gql`
+        query GetOps {
+          operations
+        }
+      `,
+      data: { operations: this.operations },
+    });
+    await apolloOfflineOperationsPersistor.persist();
   }
 
   processQueue() {
@@ -136,15 +158,17 @@ export class OfflineLink extends ApolloLink {
       this.notifyObservers();
     }); */
     //TODO fijate que aca deberia detenerse cuando hay un error, que no avance hasta que se complete la operacion, posible solucion
-    if (this.operations.length === 0) return;
+
+    if (!this.operations || this.operations.length === 0) return;
     const firstOp = this.operations[0];
-    console.log({ firstOp });
+
+    console.log({ operations: this.operations[0], firstOp });
 
     firstOp.forward(firstOp.operation).subscribe({
       next: (result: any) => {
         console.log("Offline queue result", result);
         this.operations.shift();
-        this.saveOperations();
+        this.persistOperations();
         this.processQueue();
       },
       error: (error: any) => {
@@ -153,7 +177,6 @@ export class OfflineLink extends ApolloLink {
       },
     });
     this.notifyObservers();
-    this.saveOperations();
   }
 
   toggleOnline() {
@@ -170,7 +193,7 @@ export class OfflineLink extends ApolloLink {
 
   getPendingOperations() {
     return {
-      operations: this.operations.slice(),
+      operations: this.operations?.slice() || [],
       length: this.operations.length,
       // Otros datos relevantes
     };
@@ -196,7 +219,7 @@ export class OfflineLink extends ApolloLink {
     ) {
       console.log("si no hay internet y la operacion es una mutacion la guarda en la cola");
       this.operations.push({ operation, forward });
-      this.saveOperations();
+      this.persistOperations();
 
       // Return optimistic response
       console.log("optimisticResponse", operation.getContext().optimisticResponse);
@@ -214,7 +237,7 @@ export class OfflineLink extends ApolloLink {
     ) {
       console.log("es una query y no hay internet, busca los datos en cache");
       return new Observable((observer) => {
-        const data = cache.readQuery({
+        const data = dataCache.readQuery({
           query: operation.query,
           variables: operation.variables,
         });
@@ -225,30 +248,15 @@ export class OfflineLink extends ApolloLink {
   }
 }
 
-// Function to persist cache
-const persistCache = async () => {
-  console.warn("Persisting Apollo cache");
-  try {
-    await AsyncStorage.setItem("apollo-cache", JSON.stringify(cache.extract()));
-    console.warn("Apollo cache persisted");
-  } catch (e) {
-    console.error("Error persisting Apollo cache", e);
-  }
-};
+//apollo-cache
 
 // Function to initialize client
 export const initApolloClient = async (offlineLink: any) => {
   let client = null;
   if (client) return client;
   // Restore cache first
-  try {
-    const savedCache = await AsyncStorage.getItem("apollo-cache");
-    if (savedCache) {
-      cache.restore(JSON.parse(savedCache));
-    }
-  } catch (e) {
-    console.error("Error restoring Apollo cache", e);
-  }
+  await apolloCachePersistor.restore();
+  await apolloOfflineOperationsPersistor.restore();
 
   // Create Apollo client
   client = new ApolloClient({
@@ -277,7 +285,7 @@ export const initApolloClient = async (offlineLink: any) => {
       new RetryLink(),
       authLink.concat(httpLink),
     ]),
-    cache,
+    cache: dataCache,
     defaultOptions: {
       query: {
         fetchPolicy: "cache-first",
@@ -292,12 +300,16 @@ export const initApolloClient = async (offlineLink: any) => {
   AppState.addEventListener("change", (nextAppState) => {
     console.warn("AppState change", nextAppState);
     if (nextAppState === "background" || nextAppState === "inactive") {
-      persistCache();
+      apolloCachePersistor.persist();
+      apolloOfflineOperationsPersistor.persist();
     }
   });
 
   // Also persist periodically while app is running
-  setInterval(persistCache, 60000); // Every minute
+  setInterval(() => {
+    apolloCachePersistor.persist();
+    apolloOfflineOperationsPersistor.persist();
+  }, 60000); // Every minute
   console.warn("main");
   loadDevMessages();
   loadErrorMessages();
