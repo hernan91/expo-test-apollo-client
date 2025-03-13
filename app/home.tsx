@@ -78,6 +78,12 @@ export default function () {
       //datos obtenidos desde alguna consulta tipo GET_ASSETS
       ...JSON.parse(mutationText),
       id: generateMongoObjectId(),
+      //createdBy: "algun usuario",
+      //createdAt: new Date().toISOString(),
+    };
+
+    const optimisticRecord = {
+      ...newRecord,
       task: {
         asset: {
           id: "17bca26e67f559eeded23e95",
@@ -95,12 +101,10 @@ export default function () {
         },
       },
       active: true,
-      createdBy: "algun usuario",
-      //createdAt: new Date().toISOString(),
     };
     //PARA CADA CONSULTA CON SU CONJUNTO DE VARIABLES SE VA A CREAR UNA NUEVA ENTRADA EN CACHE
     createExternalPipingRecord({
-      variables: { record: { id: generateMongoObjectId(), ...exampleRecord } },
+      variables: { record: { ...newRecord } },
       optimisticResponse: {
         __typename: "Mutation",
         createExternalPipingRecord: {
@@ -112,7 +116,7 @@ export default function () {
       // Update function: cómo actualizar el caché
       update: (cache, { data }) => {
         // Leer los datos actuales
-        console.log({ data, newRecord });
+        console.log({ data, optimisticRecord });
         const existingRecords: any = cache.readQuery({
           query: GET_PIPING_RECORDS,
         });
@@ -128,7 +132,7 @@ export default function () {
           data: {
             findExternalPipingRecords: {
               __typename: "ExternalPipingRecord",
-              records: [...records, { ...newRecord }],
+              records: [...records, { ...optimisticRecord }],
               count: records.length + 1,
             },
           },
@@ -142,9 +146,7 @@ export default function () {
       {/*  <Text>{JSON.stringify(networkState, null, 2)}</Text> */}
 
       {pipingData?.findExternalPipingRecords?.records &&
-        pipingData.findExternalPipingRecords.records.map((r) => (
-          <Text key={r.material}>{r.material}</Text>
-        ))}
+        pipingData.findExternalPipingRecords.records.map((r) => <Text key={r.id}>{r.id}</Text>)}
       <Button title="Crear record" onPress={handleCreateRecord}></Button>
       <Text>{logCreateRecords()}</Text>
       <Text>{logInsertRecord()}</Text>

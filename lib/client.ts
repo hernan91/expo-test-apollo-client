@@ -69,38 +69,38 @@ export class OfflineLink extends ApolloLink {
     super();
 
     this.operations = [];
-    Network.getNetworkStateAsync().then((state) => {
-      this.isOnline = !!state.isConnected;
-      this.processQueue();
 
-      /* if (this.isOnline && this.operations.length > 0) {
-        console.log("procesa la cola de netinfo");
-        this.processQueue();
-      } */
-    });
+    /* if (this.isOnline && this.operations.length > 0) {
+      console.log("procesa la cola de netinfo");
+      this.processQueue();
+    } */
+
+    this.updateNetworkState();
+
     //isOnline es solo a modo de pruebas para controlar el acceso a internet
 
     this.errorState = false;
     this.observers = new Set();
 
     // en cada inicio de app se cargan las operaciones que hayan quedado pendientes en storage
-    this.restoreOperations();
+    /* this.restoreOperations().then(() => {
+       this.processQueue();
+    }); */
 
     // En caso que la app se quede sin internet, se guarda la operacion en la cola
-    Network.addNetworkStateListener((state) => {
+    Network.addNetworkStateListener(async (state) => {
       console.warn("NetInfo state", state);
-      const wasOffline = !this.isOnline;
-      this.isOnline = !!state.isConnected;
+      await this.updateNetworkState();
+      this.processQueue();
 
       // Si pasamos de un estado offline a online, se procesan las operaciones pendientes
       //if (wasOffline && this.isOnline) {
-      console.log({ pasa: this.isOnline && this.operations.length > 0 });
-      if (this.isOnline && this.operations.length > 0) {
-        console.log("procesa la cola de netinfo");
-        this.processQueue();
-      }
-      this.notifyObservers();
     });
+  }
+
+  async updateNetworkState() {
+    const state = await Network.getNetworkStateAsync();
+    this.isOnline = !!state.isConnected;
   }
 
   suscribe(callback: (queueState: QueueState) => void) {
@@ -123,15 +123,18 @@ export class OfflineLink extends ApolloLink {
    */
   async restoreOperations() {
     console.warn("Loading offline operations");
+    console.log({ window });
     await apolloOfflineOperationsPersistor.restore();
+    console.log({ ops: this.operations });
     this.operations =
-      operationsCache.readQuery({
+      (await operationsCache.readQuery({
         query: gql`
           query GetOps {
             operations
           }
         `,
-      })?.operations || [];
+      })?.operations) || [];
+    console.log({ ops: this.operations });
   }
 
   async persistOperations() {
@@ -158,17 +161,19 @@ export class OfflineLink extends ApolloLink {
       this.notifyObservers();
     }); */
     //TODO fijate que aca deberia detenerse cuando hay un error, que no avance hasta que se complete la operacion, posible solucion
-
+    console.warn("Processing offline queue");
     if (!this.operations || this.operations.length === 0) return;
     const firstOp = this.operations[0];
 
-    console.log({ operations: this.operations[0], firstOp });
+    console.log({ operations: this.operations, firstOp });
+    //TODO fijate si aca forward es nulo o que onda
 
     firstOp.forward(firstOp.operation).subscribe({
       next: (result: any) => {
         console.log("Offline queue result", result);
         this.operations.shift();
         this.persistOperations();
+        this.notifyObservers();
         this.processQueue();
       },
       error: (error: any) => {
@@ -176,7 +181,6 @@ export class OfflineLink extends ApolloLink {
         this.errorState = true;
       },
     });
-    this.notifyObservers();
   }
 
   toggleOnline() {
@@ -255,8 +259,10 @@ export const initApolloClient = async (offlineLink: any) => {
   let client = null;
   if (client) return client;
   // Restore cache first
-  await apolloCachePersistor.restore();
-  await apolloOfflineOperationsPersistor.restore();
+  console.log("initApolloClient");
+  //await apolloCachePersistor.restore();
+  //await apolloOfflineOperationsPersistor.restore();
+  console.log("finish restore");
 
   // Create Apollo client
   client = new ApolloClient({
