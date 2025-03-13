@@ -61,3 +61,9 @@ const styles = StyleSheet.create({
 });
 
 export default QueueVisualization;
+
+/* No se devuelven {data, loading, error} correctamente cuando se hace la mutation 
+Hay un error con firstOp que no tiene metodo forward, fijate como se almacenan en cache, porque en storage no existe forward
+
+
+Descomentar linea 87 */
