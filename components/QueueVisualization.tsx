@@ -1,4 +1,5 @@
-import { OfflineLink, QueueState } from "@/lib/client";
+import { QueueState } from "@/lib/client";
+import { OfflineLink } from "@/lib/OfflineLink";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Button } from "react-native";
@@ -31,16 +32,15 @@ const QueueVisualization = ({ offlineLink }: { offlineLink: OfflineLink }) => {
     }
   }, [offlineLink]);
 
-  const handleOnlineChange = () => {
+  /*   const handleOnlineChange = () => {
     offlineLink.toggleOnline();
-  };
+  }; */
 
   return (
     <View style={styles.container}>
       <Text style={{ backgroundColor: queue.isOnline ? "green" : "red", ...styles.netState }}>
         {queue.isOnline ? "Online" : "Offline"}
       </Text>
-
       <Text>{queue.length === 0 ? "Sync" : `Pend(${queue.length})`}</Text>
     </View>
   );

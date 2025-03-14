@@ -192,4 +192,7 @@ const exampleRecord = {
 	pero ahora estas viendo como se comporta offline y volviendo a estar en linea.
 	Como que la variable operations no se muestra, que pasa si la metes en un useEffect y console?
 	Pero las ops se estan almacenando, en "Application->LocalStorage" aparecen
+	Ver tema imagenes, gestionas optimistic response en la mutation del path de la imagen cargada en el front,
+	despues con update te comunicas con el back para subir a S3 y obtenes signedUrl y te volves a comunicar para 
+	insertar el record con cada uno de los items con las signedUrls
 */
