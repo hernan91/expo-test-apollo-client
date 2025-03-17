@@ -21,20 +21,15 @@ import { AsyncStorageWrapper, persistCache } from "apollo3-cache-persist";
 import { CachePersistor } from "apollo3-cache-persist";
 import { OfflineLink } from "./OfflineLink";
 
-const dataCache = new InMemoryCache();
-const operationsCache = new InMemoryCache();
-const apolloCachePersistor = new CachePersistor({
-  cache: dataCache,
+const cache = new InMemoryCache();
+
+const cachePersistor = new CachePersistor({
+  cache: cache,
   storage: new AsyncStorageWrapper(AsyncStorage),
   key: "apollo-data-cache",
 });
 
 console.log("creacion de persistors");
-const apolloOfflineOperationsPersistor = new CachePersistor({
-  cache: operationsCache,
-  storage: new AsyncStorageWrapper(AsyncStorage),
-  key: "apollo-offline-operations",
-});
 
 const httpLink = createHttpLink({
   uri: "http://192.168.2.105:4000",
@@ -50,17 +45,14 @@ const authLink = setContext(async (_, { headers }) => {
   };
 });
 
-const offlineLink = new OfflineLink(
-  operationsCache,
-  dataCache,
-  apolloOfflineOperationsPersistor,
-  apolloCachePersistor
-);
+const offlineLink = new OfflineLink(cache, cachePersistor);
 
 export type QueueState = {
   operations: any[];
   length: number;
   isOnline: boolean;
+  errorState: boolean;
+  loading: boolean;
 };
 
 //apollo-cache
@@ -102,7 +94,7 @@ export const initApolloClient = async () => {
       new RetryLink(),
       authLink.concat(httpLink),
     ]),
-    cache: dataCache,
+    cache: cache,
     defaultOptions: {
       query: {
         fetchPolicy: "cache-first",
@@ -119,15 +111,13 @@ export const initApolloClient = async () => {
   AppState.addEventListener("change", (nextAppState) => {
     console.warn("AppState change", nextAppState);
     if (nextAppState === "background" || nextAppState === "inactive") {
-      apolloCachePersistor.persist();
-      apolloOfflineOperationsPersistor.persist();
+      cachePersistor.persist();
     }
   });
 
   // Also persist periodically while app is running
   setInterval(() => {
-    apolloCachePersistor.persist();
-    apolloOfflineOperationsPersistor.persist();
+    cachePersistor.persist();
   }, 60000); // Every minute
   console.warn("main");
   loadDevMessages();

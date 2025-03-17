@@ -15,24 +15,19 @@ export class OfflineLink extends ApolloLink {
   isOnline: boolean | undefined;
   observers: Set<(queueState: QueueState) => void>;
   dataCache: InMemoryCache;
-  operationsCache: InMemoryCache;
-  dataPersistor: CachePersistor<any>;
-  operationsPersistor: CachePersistor<any>;
+  loading: boolean;
 
-  constructor(
-    operationsCache: InMemoryCache,
-    dataCache: InMemoryCache,
-    operationsPersistor: CachePersistor<any>,
-    dataPersistor: CachePersistor<any>
-  ) {
+  dataPersistor: CachePersistor<any>;
+
+  constructor(cache: InMemoryCache, dataPersistor: CachePersistor<any>) {
     console.warn("OfflineLink constructor");
     super();
 
     this.operations = [];
-    this.dataCache = dataCache;
-    this.operationsCache = operationsCache;
+    this.dataCache = cache;
+    this.loading = false;
+
     this.dataPersistor = dataPersistor;
-    this.operationsPersistor = operationsPersistor;
 
     this.errorState = false;
     this.observers = new Set();
@@ -71,7 +66,12 @@ export class OfflineLink extends ApolloLink {
 
   suscribe(callback: (queueState: QueueState) => void) {
     this.observers.add(callback);
-    callback({ ...this.getPendingOperations(), isOnline: this.isOnline || false });
+    callback({
+      ...this.getPendingOperations(),
+      isOnline: this.isOnline || false,
+      errorState: this.errorState,
+      loading: this.loading,
+    });
     return () => this.unsuscribe(callback);
   }
 
@@ -82,7 +82,14 @@ export class OfflineLink extends ApolloLink {
   notifyObservers() {
     const state = this.getPendingOperations();
     console.log("notifica");
-    this.observers.forEach((callback) => callback({ ...state, isOnline: this.isOnline || false }));
+    this.observers.forEach((callback) =>
+      callback({
+        ...state,
+        isOnline: this.isOnline || false,
+        errorState: this.errorState,
+        loading: this.loading,
+      })
+    );
   }
 
   /**
@@ -91,10 +98,10 @@ export class OfflineLink extends ApolloLink {
   async restoreOperations() {
     console.warn("Loading offline operations");
 
-    await this.operationsPersistor.restore();
+    await this.dataPersistor.restore();
     console.log({ ops: this.operations });
     this.operations =
-      (await this.operationsCache.readQuery({
+      (await this.dataCache.readQuery({
         query: gql`
           query GetOps {
             operations
@@ -106,7 +113,7 @@ export class OfflineLink extends ApolloLink {
 
   async persistOperations() {
     console.warn("Saving offline operations");
-    this.operationsCache.writeQuery({
+    this.dataCache.writeQuery({
       query: gql`
         query GetOps {
           operations
@@ -130,6 +137,8 @@ export class OfflineLink extends ApolloLink {
     //TODO fijate que aca deberia detenerse cuando hay un error, que no avance hasta que se complete la operacion, posible solucion
     console.warn("Processing offline queue");
     if (!this.operations || this.operations.length === 0) return;
+    this.loading = true;
+
     const firstOp = this.operations[0];
 
     console.log({ operations: this.operations, firstOp });
@@ -137,16 +146,28 @@ export class OfflineLink extends ApolloLink {
 
     firstOp.forward(firstOp.operation).subscribe({
       next: (result: any) => {
+        if (result?.errors) {
+          this.errorState = true;
+          return this.notifyObservers();
+        }
+        console.log("error state: false");
+        this.errorState = false;
+        //el loading no va aca, aca seria loading false
         console.log("Offline queue result", result);
         this.operations.shift();
+
+        this.loading = false;
         this.notifyObservers();
         this.persistOperations();
-
         this.processQueue();
       },
       error: (error: any) => {
         console.error("Error processing offline queue", error);
+        console.log("error state: true");
+
+        this.loading = false;
         this.errorState = true;
+        this.notifyObservers();
       },
     });
   }
@@ -195,6 +216,7 @@ export class OfflineLink extends ApolloLink {
       )
     ) {
       console.log("si no hay internet y la operacion es una mutacion la guarda en la cola");
+
       this.pushNewOperation(operation, forward);
       this.persistOperations();
 

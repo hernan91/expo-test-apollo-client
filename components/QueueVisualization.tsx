@@ -2,7 +2,8 @@ import { QueueState } from "@/lib/client";
 import { OfflineLink } from "@/lib/OfflineLink";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Button } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Button, ActivityIndicator } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 const QueueVisualization = ({ offlineLink }: { offlineLink: OfflineLink }) => {
   //const operationsQueue: any[] = useOfflineLinkStore((state) => state.getOperations());
@@ -18,7 +19,13 @@ const QueueVisualization = ({ offlineLink }: { offlineLink: OfflineLink }) => {
     func();
   }, [AsyncStorage.getItem("apollo-offline-operations")]); */
 
-  const [queue, setQueue] = useState<QueueState>({ operations: [], length: 0, isOnline: false });
+  const [queue, setQueue] = useState<QueueState>({
+    operations: [],
+    length: 0,
+    isOnline: false,
+    errorState: false,
+    loading: false,
+  });
 
   const handleUpdateSignal = (queueState: QueueState) => {
     setQueue(queueState);
@@ -36,12 +43,23 @@ const QueueVisualization = ({ offlineLink }: { offlineLink: OfflineLink }) => {
     offlineLink.toggleOnline();
   }; */
 
+  const uploadIcon = (
+    <Ionicons name="arrow-up" size={32} color={queue.isOnline ? "green" : "black"} />
+  );
+  const syncIcon = <Ionicons name="sync" size={32} color={queue.isOnline ? "green" : "black"} />;
+  const errorIcon = <Ionicons name="close-circle-outline" size={32} color="red" />;
+  const loadingIcon = <ActivityIndicator />;
+
+  const getStateIcon = () => {
+    if (queue.loading) return loadingIcon;
+    if (queue.errorState) return errorIcon;
+    if (queue.length > 0) return uploadIcon;
+    return syncIcon;
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={{ backgroundColor: queue.isOnline ? "green" : "red", ...styles.netState }}>
-        {queue.isOnline ? "Online" : "Offline"}
-      </Text>
-      <Text>{queue.length === 0 ? "Sync" : `Pend(${queue.length})`}</Text>
+      {getStateIcon()} <Text>items:{queue.length}</Text>
     </View>
   );
 };

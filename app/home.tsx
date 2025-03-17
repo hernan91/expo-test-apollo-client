@@ -145,9 +145,12 @@ export default function () {
   return (
     <ScrollView>
       {/*  <Text>{JSON.stringify(networkState, null, 2)}</Text> */}
-
-      {pipingData?.findExternalPipingRecords?.records &&
-        pipingData.findExternalPipingRecords.records.map((r) => <Text key={r.id}>{r.id}</Text>)}
+      <View>
+        {pipingData?.findExternalPipingRecords?.records &&
+          pipingData.findExternalPipingRecords.records
+            .slice(-15)
+            .map((r) => <Text key={r.id}>{r.id}</Text>)}
+      </View>
       <Button title="Crear record" onPress={handleCreateRecord}></Button>
       <Text>{logCreateRecords()}</Text>
       <Text>{logInsertRecord()}</Text>
