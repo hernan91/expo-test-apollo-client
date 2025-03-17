@@ -139,8 +139,9 @@ export class OfflineLink extends ApolloLink {
       next: (result: any) => {
         console.log("Offline queue result", result);
         this.operations.shift();
-        this.persistOperations();
         this.notifyObservers();
+        this.persistOperations();
+
         this.processQueue();
       },
       error: (error: any) => {
@@ -150,13 +151,13 @@ export class OfflineLink extends ApolloLink {
     });
   }
 
-  toggleOnline() {
+  /*   toggleOnline() {
     console.log("toggleOnline");
     this.isOnline = !this.isOnline;
     console.log({ onlineClient: this.isOnline });
     this.notifyObservers();
     if (this.isOnline) this.processQueue();
-  }
+  } */
 
   /*   setOperations(operations: any[]) {
     this.operations = operations;
@@ -168,6 +169,11 @@ export class OfflineLink extends ApolloLink {
       length: this.operations.length,
       // Otros datos relevantes
     };
+  }
+
+  pushNewOperation(operation: any, forward: any) {
+    this.operations.push({ operation, forward });
+    this.notifyObservers();
   }
 
   //override del metodo request de ApolloLink, siempre devuelve un Observable
@@ -189,7 +195,7 @@ export class OfflineLink extends ApolloLink {
       )
     ) {
       console.log("si no hay internet y la operacion es una mutacion la guarda en la cola");
-      this.operations.push({ operation, forward });
+      this.pushNewOperation(operation, forward);
       this.persistOperations();
 
       // Return optimistic response

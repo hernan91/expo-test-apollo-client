@@ -76,8 +76,9 @@ export default function () {
   const handleCreateRecord = () => {
     const newRecord = {
       //datos obtenidos desde alguna consulta tipo GET_ASSETS
-      ...JSON.parse(mutationText),
       id: generateMongoObjectId(),
+      ...JSON.parse(mutationText),
+
       //createdBy: "algun usuario",
       //createdAt: new Date().toISOString(),
     };
@@ -109,7 +110,7 @@ export default function () {
         __typename: "Mutation",
         createExternalPipingRecord: {
           __typename: "ExternalPipingRecord",
-          ...newRecord,
+          ...optimisticRecord,
         },
       },
 
@@ -188,11 +189,6 @@ const exampleRecord = {
   currentDailyPart: {}, */
 
 /* 
-	contador de cantidad de elementos encolados no funciona
-	te quedaste ya haciendo debugging de funcionamiento en web, ya inserta bien los records, 
-	pero ahora estas viendo como se comporta offline y volviendo a estar en linea.
-	Como que la variable operations no se muestra, que pasa si la metes en un useEffect y console?
-	Pero las ops se estan almacenando, en "Application->LocalStorage" aparecen
 	Ver tema imagenes, gestionas optimistic response en la mutation del path de la imagen cargada en el front,
 	despues con update te comunicas con el back para subir a S3 y obtenes signedUrl y te volves a comunicar para 
 	insertar el record con cada uno de los items con las signedUrls
