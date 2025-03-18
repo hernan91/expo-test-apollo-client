@@ -1,11 +1,13 @@
-import { QueueState } from "@/lib/client";
 import { OfflineLink } from "@/lib/OfflineLink";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Button, ActivityIndicator } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { QueueState, useQueueStore } from "@/store/useQueueStore";
 
-const QueueVisualization = ({ offlineLink }: { offlineLink: OfflineLink }) => {
+const QueueVisualization = () => {
+  const queueState = useQueueStore();
+
   //const operationsQueue: any[] = useOfflineLinkStore((state) => state.getOperations());
   /* const op = operationsQueue.map((item, i) =>
     item.operation.variables.record.id.toString().slice(-6)
@@ -19,47 +21,28 @@ const QueueVisualization = ({ offlineLink }: { offlineLink: OfflineLink }) => {
     func();
   }, [AsyncStorage.getItem("apollo-offline-operations")]); */
 
-  const [queue, setQueue] = useState<QueueState>({
-    operations: [],
-    length: 0,
-    isOnline: false,
-    errorState: false,
-    loading: false,
-  });
-
-  const handleUpdateSignal = (queueState: QueueState) => {
-    setQueue(queueState);
-    console.log("update Signal", { isOnline: queueState.isOnline });
-  };
-
-  useEffect(() => {
-    if (offlineLink) {
-      const observer = offlineLink.suscribe(handleUpdateSignal);
-      return offlineLink.unsuscribe(observer);
-    }
-  }, [offlineLink]);
-
   /*   const handleOnlineChange = () => {
     offlineLink.toggleOnline();
   }; */
 
   const uploadIcon = (
-    <Ionicons name="arrow-up" size={32} color={queue.isOnline ? "green" : "black"} />
+    <Ionicons name="arrow-up" size={32} color={queueState.isOnline ? "green" : "red"} />
   );
-  const syncIcon = <Ionicons name="sync" size={32} color={queue.isOnline ? "green" : "black"} />;
+  const syncIcon = <Ionicons name="sync" size={32} color={queueState.isOnline ? "green" : "red"} />;
   const errorIcon = <Ionicons name="close-circle-outline" size={32} color="red" />;
   const loadingIcon = <ActivityIndicator />;
 
   const getStateIcon = () => {
-    if (queue.loading) return loadingIcon;
-    if (queue.errorState) return errorIcon;
-    if (queue.length > 0) return uploadIcon;
+    if (queueState.loading) return loadingIcon;
+    if (queueState.error) return errorIcon;
+    if (queueState.operations.length > 0) return uploadIcon;
     return syncIcon;
   };
 
   return (
     <View style={styles.container}>
-      {getStateIcon()} <Text>items:{queue.length}</Text>
+      <Text>{getStateIcon()}</Text>
+      <Text>items:{queueState.operations.length}</Text>
     </View>
   );
 };

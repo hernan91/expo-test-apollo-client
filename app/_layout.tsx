@@ -1,28 +1,38 @@
 import QueueVisualization from "@/components/QueueVisualization";
 import { initApolloClient } from "@/lib/client";
+import { useQueueStore } from "@/store/useQueueStore";
 import { ApolloProvider } from "@apollo/client";
 import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
+import * as Network from "expo-network";
 
 export default function RootLayout() {
   const [client, setClient] = useState<any>(null);
-  const [offlineLink, setOfflineLink] = useState<any>(null);
+  const queueStore = useQueueStore();
+  const [networkState, setNetworkState] = useState<Network.NetworkState>();
+
+  useEffect(() => {
+    const func = async () => {
+      const status = await Network.getNetworkStateAsync();
+      queueStore.setIsOnline(!!status.isInternetReachable);
+    };
+    func();
+  }, []);
 
   useEffect(() => {
     const func = async () => {
       console.log("Initializing Apollo client");
-      const [client, offlineLink] = await initApolloClient();
-      setClient(client);
-      setOfflineLink(offlineLink);
-      console.log({ client });
+      if (queueStore.isOnline) {
+        const client = await initApolloClient(queueStore);
+        setClient(client);
+      }
     };
-
     func();
-  }, []);
+  }, [queueStore.isOnline]);
 
   return (
     <>
-      <QueueVisualization offlineLink={offlineLink} />
+      <QueueVisualization />
       {client && (
         <ApolloProvider client={client}>
           <Stack>

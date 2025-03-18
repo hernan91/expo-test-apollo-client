@@ -20,6 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AsyncStorageWrapper, persistCache } from "apollo3-cache-persist";
 import { CachePersistor } from "apollo3-cache-persist";
 import { OfflineLink } from "./OfflineLink";
+import { QueueStore } from "@/store/useQueueStore";
 
 const cache = new InMemoryCache();
 
@@ -45,20 +46,10 @@ const authLink = setContext(async (_, { headers }) => {
   };
 });
 
-const offlineLink = new OfflineLink(cache, cachePersistor);
-
-export type QueueState = {
-  operations: any[];
-  length: number;
-  isOnline: boolean;
-  errorState: boolean;
-  loading: boolean;
-};
-
 //apollo-cache
 
 // Function to initialize client
-export const initApolloClient = async () => {
+export const initApolloClient = async (queueStore: QueueStore) => {
   let client = null;
   if (client) return client;
   // Restore cache first
@@ -81,7 +72,7 @@ export const initApolloClient = async () => {
         }
         if (networkError) console.warn(`[Network error]: ${networkError}`);
       }),
-      offlineLink,
+      new OfflineLink(cache, cachePersistor, queueStore),
       /**
 			 * RetryLink: Es proactivo: Recibe la operación de OfflineLink y la pasa a HttpLink (flujo hacia adelante)
 				Monitorea resultados: Si HttpLink falla con ciertos errores (como timeout o error 500), RetryLink intercepta automáticamente ese error
@@ -93,6 +84,14 @@ export const initApolloClient = async () => {
 			 */
       new RetryLink(),
       authLink.concat(httpLink),
+      /* new ApolloLink((operation, forward) => {
+        return forward(operation).map((response) => {
+          // Tu lógica para operaciones exitosas
+          console.log("Operación exitosa:", operation.operationName);
+          //queueStore.popOperation();
+          return response;
+        });
+      }), */
     ]),
     cache: cache,
     defaultOptions: {
@@ -101,8 +100,6 @@ export const initApolloClient = async () => {
       },
     },
   });
-
-  offlineLink.updateNetworkState();
 
   //TO-DO agregar persistencia con expo-background-fetch'
   // Ver archivo backgroundFetch.ts
@@ -122,7 +119,7 @@ export const initApolloClient = async () => {
   console.warn("main");
   loadDevMessages();
   loadErrorMessages();
-  return [client, offlineLink];
+  return client;
 };
 
 //y cada vez que internet vuelve o se va, Offline link es el responsable de manejar las operaciones
