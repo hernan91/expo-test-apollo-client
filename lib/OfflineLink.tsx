@@ -1,9 +1,18 @@
-import { ApolloLink, gql, InMemoryCache, Observable, Operation } from "@apollo/client";
+import {
+  ApolloLink,
+  gql,
+  InMemoryCache,
+  Observable,
+  Operation,
+  NextLink,
+  FetchResult,
+} from "@apollo/client";
 
 import * as Network from "expo-network";
 import { AsyncStorageWrapper, CachePersistor } from "apollo3-cache-persist";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueueState, QueueStore, useQueueStore } from "@/store/useQueueStore";
+import { OperationDefinitionNode } from "graphql";
 
 /**  Apollo link es middleware que gestiona las OPERACIONES offline (no confundir, NO ALMACENA LOS DATOS),
  * hacemos nuestra propia implementacion para tener mas control sobre las operaciones offline
@@ -15,9 +24,13 @@ export class OfflineLink extends ApolloLink {
   cache: InMemoryCache;
   queueStore: QueueStore;
 
-  cachePersistor: CachePersistor<any>;
+  cachePersistor: CachePersistor<Operation>;
 
-  constructor(cache: InMemoryCache, dataPersistor: CachePersistor<any>, queueStore: QueueStore) {
+  constructor(
+    cache: InMemoryCache,
+    dataPersistor: CachePersistor<Operation>,
+    queueStore: QueueStore
+  ) {
     console.warn("OfflineLink constructor");
     super();
 
@@ -113,24 +126,17 @@ export class OfflineLink extends ApolloLink {
     //TODO fijate si aca forward es nulo o que onda
 
     firstOp.forward(firstOp.operation).subscribe({
+      ///PASAR A SUS PROPIAS FUNCIONES A NEXT Y ERROR
       next: (result: any) => {
-        if (result?.errors) {
-          return this.queueStore.setError({ message: result.errors[0].message });
-        }
-        console.log("error state: false");
-        this.queueStore.setError(null);
-        //el loading no va aca, aca seria loading false
-        console.log("Offline queue result", result);
-        this.queueStore.popOperation();
-
         this.queueStore.setLoading(false);
-        this.persistOperations();
-        this.processQueue();
+        if (!result?.errors) {
+          this.queueStore.popOperation();
+          this.persistOperations();
+          this.processQueue();
+        }
+        return this.queueStore.setError({ message: result.errors[0].message });
       },
       error: (error: any) => {
-        console.error("Error processing offline queue", error);
-        console.log("error state: true");
-
         this.queueStore.loading = false;
         this.queueStore.setError({ message: error.message });
       },
@@ -161,45 +167,61 @@ export class OfflineLink extends ApolloLink {
     this.queueStore.pushOperation({ operation, forward });
   }
 
-  //override del metodo request de ApolloLink, siempre devuelve un Observable
-  request(operation: Operation, forward: any) {
-    console.log({ isONline: this.queueStore.isOnline });
-    if (this.queueStore.isOnline) {
-      //si hay internet pasa a HttpLink
-      console.log("si hay internet pasa a HttpLink");
-      this.proces;
-      //this.pushNewOperation(operation, forward);
-      return forward(operation);
+  onSuccessFullOperation(result: any) {
+    this.queueStore.setLoading(false);
+    if (result?.errors) {
+      return this.queueStore.setError({ message: result.errors[0].message });
     }
+    console.log("error state: false");
+    this.queueStore.setError(null);
+    this.queueStore.popOperation();
+    this.persistOperations();
+  }
 
-    //Si no hay internet y la operacion es una mutacion la guarda en la cola
-    if (
-      operation.query.definitions.some(
-        (def) => def.kind === "OperationDefinition" && def.operation === "mutation"
-      )
-    ) {
-      console.log("si no hay internet y la operacion es una mutacion la guarda en la cola");
-
-      this.pushNewOperation(operation, forward);
+  //override del metodo request de ApolloLink, siempre devuelve un Observable
+  request(operation: Operation, forward: any): Observable<FetchResult> | null {
+    //Forward = NextLink
+    console.log("entra en request");
+    const operationDefinitions: OperationDefinitionNode[] = operation.query.definitions.filter(
+      (def) => def.kind === "OperationDefinition"
+    );
+    const isMutation = operationDefinitions.some((def) => def.operation === "mutation");
+    const isQuery = operationDefinitions.some((def) => def.operation === "query");
+    if (isMutation) {
+      //this.pushNewOperation(operation, forward);
+      this.queueStore.pushOperation({ operation, forward });
       this.persistOperations();
 
-      // Return optimistic response
-      console.log("optimisticResponse", operation.getContext().optimisticResponse);
-      return new Observable((observer) => {
-        observer.next({ data: operation.getContext().optimisticResponse });
-        observer.complete();
-      });
+      if (this.queueStore.isOnline) {
+        this.queueStore.setLoading(true);
+        this.queueStore.setError(null);
+        forward(operation).subscribe({
+          next: (result: FetchResult) => {
+            this.queueStore.setLoading(false);
+            if (!result?.errors) {
+              this.queueStore.popOperation();
+              this.persistOperations();
+              return { data: result.data };
+            }
+            this.queueStore.setError({ message: result.errors[0].message });
+            return { data: result };
+          },
+          error: (e) => {
+            this.queueStore.loading = false;
+            this.queueStore.setError({ message: e });
+          },
+        });
+      }
     }
-
-    // Si no hay internet y la operacion es una query, busca los datos en cache
-    if (
-      operation.query.definitions.some(
-        (def) => def.kind === "OperationDefinition" && def.operation === "query"
-      )
-    ) {
-      console.log("es una query y no hay internet, busca los datos en cache");
+    if (isQuery) {
+      if (!this.queueStore.isOnline) {
+        return new Observable((observer) => {
+          observer.next({ data: operation.getContext().optimisticResponse });
+          observer.complete();
+        });
+      }
       return new Observable((observer) => {
-        const data = this.cache.readQuery({
+        const data: any = this.cache.readQuery({
           query: operation.query,
           variables: operation.variables,
         });
@@ -207,5 +229,9 @@ export class OfflineLink extends ApolloLink {
         observer.complete();
       });
     }
+
+    return null;
+
+    // Si no hay internet y la operacion es una query, busca los datos en cache
   }
 }
