@@ -117,9 +117,8 @@ export class OfflineLink extends ApolloLink {
       this.notifyObservers();
     }); */
     //TODO fijate que aca deberia detenerse cuando hay un error, que no avance hasta que se complete la operacion, posible solucion
-    console.warn("Processing offline queue");
     if (!this.queueStore.operations || this.queueStore.operations.length === 0) return;
-    this.queueStore.loading = true;
+    this.queueStore.setLoading(true);
 
     const firstOp = this.queueStore.operations[0];
 
@@ -133,11 +132,10 @@ export class OfflineLink extends ApolloLink {
           this.queueStore.popOperation();
           this.persistOperations();
           this.processQueue();
-        }
-        return this.queueStore.setError({ message: result.errors[0].message });
+        } else this.queueStore.setError({ message: result.errors[0].message });
       },
       error: (error: any) => {
-        this.queueStore.loading = false;
+        this.queueStore.setLoading(false);
         this.queueStore.setError({ message: error.message });
       },
     });
@@ -179,59 +177,80 @@ export class OfflineLink extends ApolloLink {
   }
 
   //override del metodo request de ApolloLink, siempre devuelve un Observable
-  request(operation: Operation, forward: any): Observable<FetchResult> | null {
+  request(operation: Operation, forward: any) {
     //Forward = NextLink
-    console.log("entra en request");
+
     const operationDefinitions: OperationDefinitionNode[] = operation.query.definitions.filter(
       (def) => def.kind === "OperationDefinition"
     );
+
     const isMutation = operationDefinitions.some((def) => def.operation === "mutation");
     const isQuery = operationDefinitions.some((def) => def.operation === "query");
+    this.queueStore.setLoading(true);
+
     if (isMutation) {
-      //this.pushNewOperation(operation, forward);
+      const isLogin = operationDefinitions.some((od) =>
+        od.selectionSet.selections.some((s) => s.kind === "Field" && s.name.value === "login")
+      );
+
       this.queueStore.pushOperation({ operation, forward });
       this.persistOperations();
 
-      if (this.queueStore.isOnline) {
-        this.queueStore.setLoading(true);
-        this.queueStore.setError(null);
-        forward(operation).subscribe({
-          next: (result: FetchResult) => {
-            this.queueStore.setLoading(false);
-            if (!result?.errors) {
-              this.queueStore.popOperation();
-              this.persistOperations();
-              return { data: result.data };
-            }
-            this.queueStore.setError({ message: result.errors[0].message });
-            return { data: result };
-          },
-          error: (e) => {
-            this.queueStore.loading = false;
-            this.queueStore.setError({ message: e });
-          },
+      if (!this.queueStore.isOnline) {
+        return new Observable((observer) => {
+          observer.next({ data: operation.getContext().optimisticResponse });
+          this.queueStore.setLoading(false);
+          observer.complete();
         });
       }
+
+      if (isLogin) {
+        return forward(operation);
+      }
+
+      this.queueStore.setError(null);
+
+      return new Observable((observer) => {
+        console.log("forward operation");
+        forward(operation).subscribe({
+          next: async (result: FetchResult) => {
+            console.log({ result });
+            if (!result.errors) {
+              this.queueStore.popOperation();
+              await this.persistOperations();
+              observer.next({ data: result.data, loading: false });
+              this.queueStore.setError(null);
+            } else {
+              this.queueStore.setError({ message: result?.errors[0].message });
+              observer.next({ error: result?.errors[0].message, loading: false });
+            }
+            this.queueStore.setLoading(false);
+            //this.queueStore.setError({ message: result?.errors[0].message });
+          },
+          error: (error: any) => {
+            this.queueStore.setError({ message: error.message });
+            observer.error({ message: error.message });
+            this.queueStore.setLoading(false);
+          },
+        });
+        observer.complete();
+      });
     }
     if (isQuery) {
       if (!this.queueStore.isOnline) {
         return new Observable((observer) => {
-          observer.next({ data: operation.getContext().optimisticResponse });
+          const data = this.cache.readQuery({
+            query: operation.query,
+            variables: operation.variables,
+          });
+          observer.next({ data, loading: false });
+          this.queueStore.setLoading(false);
           observer.complete();
         });
       }
-      return new Observable((observer) => {
-        const data: any = this.cache.readQuery({
-          query: operation.query,
-          variables: operation.variables,
-        });
-        observer.next({ data });
-        observer.complete();
-      });
     }
-
-    return null;
-
-    // Si no hay internet y la operacion es una query, busca los datos en cache
+    console.log("query y off");
+    this.queueStore.setLoading(false);
+    return forward(operation);
   }
 }

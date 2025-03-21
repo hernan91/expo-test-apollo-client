@@ -6,7 +6,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { QueueState, useQueueStore } from "@/store/useQueueStore";
 
 const QueueVisualization = () => {
-  const queueState = useQueueStore();
+  const { loading, error, isOnline, operations } = useQueueStore();
 
   //const operationsQueue: any[] = useOfflineLinkStore((state) => state.getOperations());
   /* const op = operationsQueue.map((item, i) =>
@@ -25,24 +25,22 @@ const QueueVisualization = () => {
     offlineLink.toggleOnline();
   }; */
 
-  const uploadIcon = (
-    <Ionicons name="arrow-up" size={32} color={queueState.isOnline ? "green" : "red"} />
-  );
-  const syncIcon = <Ionicons name="sync" size={32} color={queueState.isOnline ? "green" : "red"} />;
+  const uploadIcon = <Ionicons name="arrow-up" size={32} color={isOnline ? "green" : "red"} />;
+  const syncIcon = <Ionicons name="sync" size={32} color={isOnline ? "green" : "red"} />;
   const errorIcon = <Ionicons name="close-circle-outline" size={32} color="red" />;
   const loadingIcon = <ActivityIndicator />;
 
   const getStateIcon = () => {
-    if (queueState.loading) return loadingIcon;
-    if (queueState.error) return errorIcon;
-    if (queueState.operations.length > 0) return uploadIcon;
+    if (loading) return loadingIcon;
+    if (error) return errorIcon;
+    if (operations.length > 0) return uploadIcon;
     return syncIcon;
   };
 
   return (
     <View style={styles.container}>
       <Text>{getStateIcon()}</Text>
-      <Text>items:{queueState.operations.length}</Text>
+      <Text>items:{operations.length}</Text>
     </View>
   );
 };

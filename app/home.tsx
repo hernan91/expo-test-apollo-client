@@ -69,7 +69,6 @@ export default function () {
     if (responseCreateRecord.error) {
       return `Error creando record: ${responseCreateRecord.error.message}`;
     }
-
     return "Record creado";
   };
 
@@ -195,4 +194,7 @@ const exampleRecord = {
 	Ver tema imagenes, gestionas optimistic response en la mutation del path de la imagen cargada en el front,
 	despues con update te comunicas con el back para subir a S3 y obtenes signedUrl y te volves a comunicar para 
 	insertar el record con cada uno de los items con las signedUrls
+
+
+	
 */
