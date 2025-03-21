@@ -116,6 +116,7 @@ export class OfflineLink extends ApolloLink {
       operation.forward(operation.operation);
       this.notifyObservers();
     }); */
+    if (this.queueStore.error || this.queueStore.loading) return;
     //TODO fijate que aca deberia detenerse cuando hay un error, que no avance hasta que se complete la operacion, posible solucion
     if (!this.queueStore.operations || this.queueStore.operations.length === 0) return;
     this.queueStore.setLoading(true);
@@ -129,9 +130,13 @@ export class OfflineLink extends ApolloLink {
       next: (result: any) => {
         this.queueStore.setLoading(false);
         if (!result?.errors) {
+          console.log("dentro del next de processQueue");
           this.queueStore.popOperation();
+          console.log("pop operacion");
           this.persistOperations();
+          console.log("persiste operaciones");
           this.processQueue();
+          console.log("procesa cola");
         } else this.queueStore.setError({ message: result.errors[0].message });
       },
       error: (error: any) => {
@@ -219,6 +224,7 @@ export class OfflineLink extends ApolloLink {
               this.queueStore.popOperation();
               await this.persistOperations();
               observer.next({ data: result.data, loading: false });
+              console.log("dentro del next de request");
               this.queueStore.setError(null);
             } else {
               this.queueStore.setError({ message: result?.errors[0].message });
