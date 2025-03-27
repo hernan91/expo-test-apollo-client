@@ -113,7 +113,6 @@ export default function () {
       // Update function: cómo actualizar el caché
       update: (cache, { data }) => {
         // Leer los datos actuales
-        console.log({ data, optimisticRecord });
         const existingRecords: any = cache.readQuery({
           query: GET_PIPING_RECORDS,
         });

@@ -14,14 +14,20 @@ const QueueVisualization = ({ onProcessRequest }: Props) => {
     <Ionicons
       name="arrow-up"
       onPress={isOnline ? onProcessRequest : () => {}}
-      disabled={loading}
       size={32}
       color={isOnline ? "green" : "red"}
     />
   );
   const syncIcon = <Ionicons name="sync" size={32} color={isOnline ? "green" : "red"} />;
-  const errorIcon = <Ionicons name="close-circle-outline" size={32} color="red" />;
-  const loadingIcon = <ActivityIndicator />;
+  const errorIcon = (
+    <Ionicons
+      onPress={isOnline ? onProcessRequest : () => {}}
+      name="close-circle-outline"
+      size={32}
+      color="red"
+    />
+  );
+  const loadingIcon = <ActivityIndicator size={32} />;
 
   const getStateIcon = () => {
     if (loading) return loadingIcon;

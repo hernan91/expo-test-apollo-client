@@ -4,26 +4,23 @@ import { useQueueStore } from "@/store/useQueueStore";
 import { ApolloProvider } from "@apollo/client";
 import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
-import * as Network from "expo-network";
+import { useNetInfo } from "@react-native-community/netinfo";
 
 export default function RootLayout() {
   const [client, setClient] = useState<any>(null);
   const queueStore = useQueueStore();
+  const { isInternetReachable } = useNetInfo();
 
-  const updateNetworkState = (state: Network.NetworkState) => {
-    queueStore.setIsOnline(!!state.isInternetReachable);
+  const updateNetworkState = () => {
+    queueStore.setIsOnline(!!isInternetReachable);
   };
 
   useEffect(() => {
-    Network.getNetworkStateAsync().then(updateNetworkState);
-    Network.addNetworkStateListener(async (state) => {
-      updateNetworkState(state);
-    });
-  }, []);
+    updateNetworkState();
+  }, [isInternetReachable]);
 
   useEffect(() => {
     const func = async () => {
-      console.log("Initializing Apollo client");
       if (queueStore.isOnline) {
         const client = await initApolloClient(queueStore);
         setClient(client);
@@ -32,13 +29,13 @@ export default function RootLayout() {
     func();
   }, [queueStore.isOnline]);
 
-  const setExecuteMutations = () => {
+  const executeMutations = () => {
     queueStore.setShouldUpdate(true);
   };
 
   return (
     <>
-      <QueueVisualization onProcessRequest={setExecuteMutations} />
+      <QueueVisualization onProcessRequest={executeMutations} />
       {client && (
         <ApolloProvider client={client}>
           <Stack>

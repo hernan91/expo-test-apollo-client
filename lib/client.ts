@@ -32,8 +32,6 @@ const cachePersistor = new CachePersistor({
   key: "apollo-data-cache",
 });
 
-console.log("creacion de persistors");
-
 const httpLink = createHttpLink({
   uri: "http://192.168.2.105:4000",
 });
@@ -99,7 +97,6 @@ export const initApolloClient = async (queueStore: QueueStore) => {
   });
 
   AppState.addEventListener("change", (nextAppState) => {
-    console.warn("AppState change", nextAppState);
     if (nextAppState === "background" || nextAppState === "inactive") {
       cachePersistor.persist();
     }
@@ -109,7 +106,6 @@ export const initApolloClient = async (queueStore: QueueStore) => {
   setInterval(() => {
     cachePersistor.persist();
   }, 60000); // Every minute
-  console.warn("main");
   loadDevMessages();
   loadErrorMessages();
   return client;

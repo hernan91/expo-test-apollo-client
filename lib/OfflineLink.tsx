@@ -1,12 +1,4 @@
-import {
-  ApolloLink,
-  gql,
-  InMemoryCache,
-  Observable,
-  Operation,
-  NextLink,
-  FetchResult,
-} from "@apollo/client";
+import { ApolloLink, gql, InMemoryCache, Observable, Operation } from "@apollo/client";
 
 import { CachePersistor } from "apollo3-cache-persist";
 import { QueueState, QueueStore, useQueueStore } from "@/store/useQueueStore";
@@ -37,7 +29,6 @@ export class OfflineLink extends ApolloLink {
     this.observers = new Set();
     //this.restoreOperations();
     useQueueStore.subscribe((queueState) => {
-      console.log({ loadign: queueState.loading });
       this.queueStore = queueState;
       if (queueState.shouldUpdate) {
         this.queueStore.setShouldUpdate(false);
@@ -76,33 +67,24 @@ export class OfflineLink extends ApolloLink {
   }
 
   processQueue() {
-    console.log(1);
-
-    //TODO fijate que aca deberia detenerse cuando hay un error, que no avance hasta que se complete la operacion, posible solucion
     if (!this.queueStore.operations || this.queueStore.operations.length === 0) return;
 
     this.queueStore.setLoading(true);
-    console.log("set loading true");
+    this.queueStore.setError(null);
 
     const firstOp = this.queueStore.operations[0];
 
-    //TODO fijate si aca forward es nulo o que onda
-
     return firstOp.forward(firstOp.operation).subscribe({
-      ///PASAR A SUS PROPIAS FUNCIONES A NEXT Y ERROR
       next: async (result: any) => {
         if (!result?.errors) {
           await this.popFirstOperation();
           this.queueStore.setLoading(false);
           this.processQueue();
         } else this.queueStore.setError({ message: result.errors[0].message });
-
-        console.log("set loading false");
       },
       error: (error: any) => {
         this.queueStore.setError({ message: error.message });
         this.queueStore.setLoading(false);
-        console.log("set loading false");
       },
     });
   }
@@ -117,7 +99,6 @@ export class OfflineLink extends ApolloLink {
     await this.persistOperations();
   }
 
-  //override del metodo request de ApolloLink, siempre devuelve un Observable
   request(operation: Operation, forward: any) {
     //Forward = NextLink
 
@@ -189,7 +170,7 @@ export class OfflineLink extends ApolloLink {
         });
       }
     }
-    console.log("query y off");
+
     this.queueStore.setLoading(false);
     return forward(operation);
   }
