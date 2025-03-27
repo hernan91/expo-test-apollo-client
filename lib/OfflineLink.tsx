@@ -8,9 +8,7 @@ import {
   FetchResult,
 } from "@apollo/client";
 
-import * as Network from "expo-network";
-import { AsyncStorageWrapper, CachePersistor } from "apollo3-cache-persist";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { CachePersistor } from "apollo3-cache-persist";
 import { QueueState, QueueStore, useQueueStore } from "@/store/useQueueStore";
 import { OperationDefinitionNode } from "graphql";
 
@@ -31,55 +29,27 @@ export class OfflineLink extends ApolloLink {
     dataPersistor: CachePersistor<Operation>,
     queueStore: QueueStore
   ) {
-    console.warn("OfflineLink constructor");
     super();
 
     this.cache = cache;
     this.cachePersistor = dataPersistor;
     this.queueStore = queueStore;
     this.observers = new Set();
+    //this.restoreOperations();
     useQueueStore.subscribe((queueState) => {
+      console.log({ loadign: queueState.loading });
       this.queueStore = queueState;
-      console.log("algo cambio en queue store");
+      if (queueState.shouldUpdate) {
+        this.queueStore.setShouldUpdate(false);
+        this.processQueue();
+      }
     });
-
-    /* if (this.isOnline && this.operations.length > 0) {
-      console.log("procesa la cola de netinfo");
-      this.processQueue();
-    } */
-
-    //isOnline es solo a modo de pruebas para controlar el acceso a internet
-
-    // en cada inicio de app se cargan las operaciones que hayan quedado pendientes en storage
-
-    /* console.log({ window }); */
-    /*    this.restoreOperations().then(() => {
-      this.processQueue();
-    }); */
-
-    // En caso que la app se quede sin internet, se guarda la operacion en la cola
-    Network.addNetworkStateListener(async (state) => {
-      console.warn("NetInfo state", state);
-      await this.updateNetworkState();
-      this.processQueue();
-
-      // Si pasamos de un estado offline a online, se procesan las operaciones pendientes
-      //if (wasOffline && this.isOnline) {
-    });
-  }
-
-  async updateNetworkState() {
-    const state = await Network.getNetworkStateAsync();
-    console.log({ elstate: state });
-    this.queueStore.setIsOnline(!!state.isInternetReachable);
   }
 
   /**
    * uso: si la app se cerro y se borro la cache, se recargan las operaciones pendientes en OfflineLink
    */
   async restoreOperations() {
-    console.warn("Loading offline operations");
-
     await this.cachePersistor.restore();
 
     const operations =
@@ -94,11 +64,10 @@ export class OfflineLink extends ApolloLink {
   }
 
   async persistOperations() {
-    console.warn("Saving offline operations");
     this.cache.writeQuery({
       query: gql`
         query GetOps {
-          operations
+          operations @client
         }
       `,
       data: { operations: this.queueStore.operations },
@@ -107,78 +76,45 @@ export class OfflineLink extends ApolloLink {
   }
 
   processQueue() {
-    /*     console.warn("Processing offline queue");
-    // Process pending operations
-    const pending = [...this.operations];
-    this.operations = [];
-    this.saveOperations();
-    pending.forEach((operation) => {
-      operation.forward(operation.operation);
-      this.notifyObservers();
-    }); */
-    if (this.queueStore.error || this.queueStore.loading) return;
+    console.log(1);
+
     //TODO fijate que aca deberia detenerse cuando hay un error, que no avance hasta que se complete la operacion, posible solucion
     if (!this.queueStore.operations || this.queueStore.operations.length === 0) return;
+
     this.queueStore.setLoading(true);
+    console.log("set loading true");
 
     const firstOp = this.queueStore.operations[0];
 
     //TODO fijate si aca forward es nulo o que onda
 
-    firstOp.forward(firstOp.operation).subscribe({
+    return firstOp.forward(firstOp.operation).subscribe({
       ///PASAR A SUS PROPIAS FUNCIONES A NEXT Y ERROR
-      next: (result: any) => {
-        this.queueStore.setLoading(false);
+      next: async (result: any) => {
         if (!result?.errors) {
-          console.log("dentro del next de processQueue");
-          this.queueStore.popOperation();
-          console.log("pop operacion");
-          this.persistOperations();
-          console.log("persiste operaciones");
+          await this.popFirstOperation();
+          this.queueStore.setLoading(false);
           this.processQueue();
-          console.log("procesa cola");
         } else this.queueStore.setError({ message: result.errors[0].message });
+
+        console.log("set loading false");
       },
       error: (error: any) => {
-        this.queueStore.setLoading(false);
         this.queueStore.setError({ message: error.message });
+        this.queueStore.setLoading(false);
+        console.log("set loading false");
       },
     });
   }
 
-  /*   toggleOnline() {
-    console.log("toggleOnline");
-    this.isOnline = !this.isOnline;
-    console.log({ onlineClient: this.isOnline });
-    this.notifyObservers();
-    if (this.isOnline) this.processQueue();
-  } */
-
-  /*   setOperations(operations: any[]) {
-    this.operations = operations;
-  } */
-
-  /*   getPendingOperations() {
-    return {
-      operations: this.operations?.slice() || [],
-      length: this.operations.length,
-      // Otros datos relevantes
-    };
-  } */
-
-  pushNewOperation(operation: any, forward: any) {
+  async pushNewOperation(operation: any, forward: any) {
     this.queueStore.pushOperation({ operation, forward });
+    await this.persistOperations();
   }
 
-  onSuccessFullOperation(result: any) {
-    this.queueStore.setLoading(false);
-    if (result?.errors) {
-      return this.queueStore.setError({ message: result.errors[0].message });
-    }
-    console.log("error state: false");
-    this.queueStore.setError(null);
-    this.queueStore.popOperation();
-    this.persistOperations();
+  async popFirstOperation() {
+    await this.queueStore.popOperation();
+    await this.persistOperations();
   }
 
   //override del metodo request de ApolloLink, siempre devuelve un Observable
@@ -191,28 +127,25 @@ export class OfflineLink extends ApolloLink {
 
     const isMutation = operationDefinitions.some((def) => def.operation === "mutation");
     const isQuery = operationDefinitions.some((def) => def.operation === "query");
-    this.queueStore.setLoading(true);
 
     if (isMutation) {
       const isLogin = operationDefinitions.some((od) =>
         od.selectionSet.selections.some((s) => s.kind === "Field" && s.name.value === "login")
       );
 
-      this.queueStore.pushOperation({ operation, forward });
-      this.persistOperations();
-
-      if (!this.queueStore.isOnline) {
-        return new Observable((observer) => {
-          observer.next({ data: operation.getContext().optimisticResponse });
-          this.queueStore.setLoading(false);
-          observer.complete();
-        });
-      }
-
       if (isLogin) {
         return forward(operation);
       }
 
+      this.queueStore.pushOperation({ operation, forward });
+      this.persistOperations();
+
+      return new Observable((observer) => {
+        observer.next({ data: operation.getContext().optimisticResponse });
+        observer.complete();
+      });
+
+      /* 
       this.queueStore.setError(null);
 
       return new Observable((observer) => {
@@ -240,9 +173,10 @@ export class OfflineLink extends ApolloLink {
           },
         });
         observer.complete();
-      });
+      }); */
     }
     if (isQuery) {
+      this.queueStore.setLoading(true);
       if (!this.queueStore.isOnline) {
         return new Observable((observer) => {
           const data = this.cache.readQuery({

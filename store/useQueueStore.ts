@@ -7,6 +7,8 @@ type State = {
   loading: boolean;
   error: { message: string } | null;
   isOnline: boolean;
+  lastUpdated: Date;
+  shouldUpdate: boolean;
 };
 
 type Operations = {
@@ -14,24 +16,25 @@ type Operations = {
   setLoading: (loading: boolean) => void;
   setError: (error: { message: string } | null) => void;
   setIsOnline: (online: boolean) => void;
+  setLastUpdated: (date: Date) => void;
   popOperation: () => void;
   pushOperation: (operation: { forward: any; operation: any }) => void;
+  setShouldUpdate: (shouldUpdate: boolean) => void;
   //updateOperations: () => void;
 };
 
 export const useQueueStore = create<State & Operations>((set) => ({
   operations: [],
-  numberOperations: 0,
   loading: false,
   error: null,
   isOnline: false,
+  lastUpdated: new Date(),
+  shouldUpdate: false,
   setOperations: (operations) => set({ operations }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
-  setIsOnline: (isOnline) => {
-    console.log({ isOnline });
-    set({ isOnline });
-  },
+  setIsOnline: (isOnline) => set({ isOnline }),
+  setLastUpdated: (date) => set({ lastUpdated: date }),
   popOperation: () =>
     set((state) => {
       const newOps = state.operations.slice(1);
@@ -42,4 +45,5 @@ export const useQueueStore = create<State & Operations>((set) => ({
       const newOps = [...state.operations, operation];
       return { operations: newOps };
     }),
+  setShouldUpdate: (shouldUpdate) => set({ shouldUpdate }),
 }));

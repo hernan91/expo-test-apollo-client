@@ -9,14 +9,16 @@ import * as Network from "expo-network";
 export default function RootLayout() {
   const [client, setClient] = useState<any>(null);
   const queueStore = useQueueStore();
-  const [networkState, setNetworkState] = useState<Network.NetworkState>();
+
+  const updateNetworkState = (state: Network.NetworkState) => {
+    queueStore.setIsOnline(!!state.isInternetReachable);
+  };
 
   useEffect(() => {
-    const func = async () => {
-      const status = await Network.getNetworkStateAsync();
-      queueStore.setIsOnline(!!status.isInternetReachable);
-    };
-    func();
+    Network.getNetworkStateAsync().then(updateNetworkState);
+    Network.addNetworkStateListener(async (state) => {
+      updateNetworkState(state);
+    });
   }, []);
 
   useEffect(() => {
@@ -30,9 +32,13 @@ export default function RootLayout() {
     func();
   }, [queueStore.isOnline]);
 
+  const setExecuteMutations = () => {
+    queueStore.setShouldUpdate(true);
+  };
+
   return (
     <>
-      <QueueVisualization />
+      <QueueVisualization onProcessRequest={setExecuteMutations} />
       {client && (
         <ApolloProvider client={client}>
           <Stack>

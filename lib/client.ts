@@ -22,6 +22,8 @@ import { CachePersistor } from "apollo3-cache-persist";
 import { OfflineLink } from "./OfflineLink";
 import { QueueStore } from "@/store/useQueueStore";
 
+//AsyncStorage.clear();
+
 const cache = new InMemoryCache();
 
 const cachePersistor = new CachePersistor({
@@ -52,11 +54,6 @@ const authLink = setContext(async (_, { headers }) => {
 export const initApolloClient = async (queueStore: QueueStore) => {
   let client = null;
   if (client) return client;
-  // Restore cache first
-  console.log("initApolloClient");
-  //await apolloCachePersistor.restore();
-  //await apolloOfflineOperationsPersistor.restore();
-  console.log("finish restore");
 
   // Create Apollo client
   client = new ApolloClient({
@@ -101,10 +98,6 @@ export const initApolloClient = async (queueStore: QueueStore) => {
     },
   });
 
-  //TO-DO agregar persistencia con expo-background-fetch'
-  // Ver archivo backgroundFetch.ts
-  // Set up AppState listener to persist on background/inactive
-  //De la forma en que esta hecho esto es que la app pasa a segundo plano se guardan los datos en cache, eso es mejorable con la libreria que hace que la cache sea persistente aumaticamente,  ver archivo "persistenciaCache"
   AppState.addEventListener("change", (nextAppState) => {
     console.warn("AppState change", nextAppState);
     if (nextAppState === "background" || nextAppState === "inactive") {

@@ -1,9 +1,7 @@
 import { useMutation, useQuery } from "@apollo/client";
-import { CREATE_EXTERAL_PIPING_RECORD, GET_PIPING_RECORDS, GET_TASKSLIST } from "../lib/querys";
+import { CREATE_EXTERAL_PIPING_RECORD, GET_PIPING_RECORDS } from "../lib/querys";
 import { useEffect, useState } from "react";
 import { Button, ScrollView, Text, TextInput, View } from "react-native";
-import { useNetworkState } from "expo-network";
-import { useReliableNetworkState } from "@/lib/useReliableNetworkState";
 
 function generateMongoObjectId() {
   const timestamp = Math.floor(Date.now() / 1000)
@@ -19,7 +17,6 @@ function generateMongoObjectId() {
 }
 
 export default function () {
-  const networkState = useReliableNetworkState();
   const [mutationText, setMutationText] = useState(JSON.stringify(exampleRecord, null, 2));
 
   const {
