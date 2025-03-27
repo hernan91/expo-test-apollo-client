@@ -38,9 +38,10 @@ const QueueVisualization = ({ onProcessRequest }: Props) => {
 
   return (
     <View style={styles.container}>
-      <Text>loading: {JSON.stringify(loading)}</Text>
-      <Text>{getStateIcon()}</Text>
-      <Text>items:{operations.length}</Text>
+      <Text>
+        {getStateIcon()}
+        {operations.length > 0 ? operations.length : ""}
+      </Text>
     </View>
   );
 };
